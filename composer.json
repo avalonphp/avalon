@@ -17,6 +17,7 @@
     },
     "autoload": {
         "psr-4": {
+            "Avalon\\Database\\": "src/Database/src/",
             "Avalon\\": [
                 "src/EventDispatcher/src/",
                 "src/Hook/src/",
