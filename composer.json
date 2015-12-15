@@ -3,7 +3,6 @@
     "description": "The Avalon framework.",
     "keywords": ["avalon", "mvc", "framework"],
     "license": "Apache-2.0",
-    "type": "metapackage",
     "authors": [
         {
             "name": "Nirix"
