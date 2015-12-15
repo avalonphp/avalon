@@ -11,7 +11,8 @@
     "require": {
         "php": ">=5.4.0",
         "avalon/templating": "2.0.*",
-        "avalon/language": "2.0.*"
+        "avalon/language": "2.0.*",
+        "doctrine/dbal": "2.5.*"
     },
     "autoload": {
         "psr-4": {
