@@ -1,0 +1,36 @@
+{
+    "name": "avalon/framework",
+    "description": "The Avalon framework.",
+    "keywords": ["avalon", "mvc", "framework"],
+    "license": "Apache-2.0",
+    "type": "metapackage",
+    "authors": [
+        {
+            "name": "Nirix"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0",
+        "avalon/templating": "2.0.*",
+        "avalon/database": "2.0.*",
+        "avalon/language": "2.0.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Avalon\\": [
+                "src/EventDispatcher/src/",
+                "src/Hook/src/",
+                "src/Kernel/src/"
+            ],
+            "Avalon\\Helpers\\": "src/Helpers/src/",
+            "Avalon\\Http\\": "src/Http/src/",
+            "Avalon\\Routing\\": "src/Routing/src/",
+            "Avalon\\Util\\": "src/Util/src/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+           "dev-master": "2.0.x-dev"
+        }
+    }
+}

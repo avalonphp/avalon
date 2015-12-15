@@ -1,0 +1,24 @@
+{
+    "name": "avalon/kernel",
+    "description": "Avalon framework kernel.",
+    "keywords": ["avalon", "framework", "kernel"],
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Nirix"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Avalon\\": "src/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+           "dev-master": "2.0.x-dev"
+        }
+    }
+}
