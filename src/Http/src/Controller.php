@@ -18,17 +18,9 @@
 
 namespace Avalon\Http;
 
-use Exception;
-use ReflectionClass;
-use Avalon\Kernel;
-use Avalon\EventDispatcher;
-use Avalon\Routing\Router;
-use Avalon\Routing\Route;
-use Avalon\Http\Request;
-use Avalon\Http\Response;
-use Avalon\Http\Controller\Filterable;
-use Avalon\Language;
 use Avalon\Templating\View;
+use Avalon\Http\Response;
+use Avalon\Http\RedirectResponse;
 
 /**
  * Controller
@@ -40,113 +32,54 @@ use Avalon\Templating\View;
  */
 class Controller
 {
-    use Filterable;
+    /**
+     * Before filters.
+     *
+     * @var array
+     */
+    public $before = [];
 
     /**
-     * Name of the layout to render.
+     * After filters.
      *
+     * @var array
+     */
+    public $after = [];
+
+    /**
      * @var string
      */
     protected $layout = 'default.phtml';
 
     /**
-     * Name of the 404 Not Found view.
+     * Render a view and wrap it in a response.
      *
-     * @var string
-     */
-    protected $notFoundView = 'errors/404.phtml';
-
-    /**
-     * Name of the 403 Forbidden view.
-     *
-     * @var string
-     */
-    protected $forbiddenView = 'errors/403.phtml';
-
-    /**
-     * Whether or not to execute the routed action.
-     *
-     * @var boolean
-     */
-    public $executeAction = true;
-
-    /**
-     * Current request.
-     *
-     * @var Request
-     */
-    protected $request;
-
-    /**
-     * Current route information.
-     *
-     * @var Route
-     */
-    protected $route;
-
-    /**
-     * @var array
-     */
-    protected $beforeFilters = [];
-
-    /**
-     * @var array
-     */
-    protected $afterFilters = [];
-
-    /**
-     * Sets the request, route, database, view and response variables.
-     */
-    public function __construct()
-    {
-        $this->request = Request::getInstance();
-        $this->route   = Router::currentRoute();
-    }
-
-    /**
-     * Sends the variable to the view.
-     *
-     * @param string $name  Variable name.
-     * @param mixed  $value Value.
-     */
-    public function set($name, $value = null)
-    {
-        View::addGlobal($name, $value);
-    }
-
-    /**
-     * Renders a response.
-     *
-     * @param string $view   View to render.
-     * @param array  $locals Variables for the view.
-     *
+     * @param  string $view
+     * @param  array  $locals
      * @return Response
      */
-    public function render($view, array $locals = [])
+    protected function render($view, array $locals = [])
     {
         $locals = $locals + [
             '_layout' => $this->layout
         ];
 
-        return new Response(function($resp) use ($view, $locals) {
-            $resp->body = $this->renderView($view, $locals);
-        });
+        return new Response($this->renderView($view, $locals));
     }
 
     /**
-     * Renders the view.
+     * Render a view.
      *
-     * @param string $view   View to render.
-     * @param array  $locals Variables for the view.
-     *
-     * @return string
+     * @param  string $view
+     * @param  array  $locals
+     * @return Response
      */
-    public function renderView($view, array $locals = [])
+    protected function renderView($view, array $locals = [])
     {
         $content = View::render($view, $locals);
 
         if (isset($locals['_layout']) && $locals['_layout']) {
-            $content = $this->renderView("layouts/{$locals['_layout']}", [
+            $content = View::render("layouts/{$locals['_layout']}", [
                 'content' => $content
             ]);
         }
@@ -155,76 +88,41 @@ class Controller
     }
 
     /**
-     * Returns the compiled path for the route.
+     * Redirect to a route.
      *
-     * @param string $routeName
-     * @param array  $tokens
-     *
-     * @return string
-     */
-    protected function generateUrl($routeName, array $tokens = [])
-    {
-        return Router::generateUrl($routeName, $tokens);
-    }
-
-    /**
-     * Translates the passed string.
-     *
-     * @param string $string       String to translate.
-     * @param array  $replacements Replacements to be inserted into the string.
-     *
-     * @return string
-     */
-    public function translate($string, array $replacements = [])
-    {
-        return Language::translate($string, $replacements);
-    }
-
-    /**
-     * Redirects to the specified path.
-     *
-     * @param string  $path
+     * @param string  $route  route name
+     * @param array   $tokens
      * @param integer $status
      *
      * @return RedirectResponse
      */
-    public function redirect($path, $status = 302)
+    protected function redirectTo($route, array $tokens = [], $status = 302)
     {
-        $path = Request::basePath($path);
-        return new RedirectResponse($path, function ($resp) use ($status) {
-            $resp->status = $status;
-        });
+        return $this->redirect(routeUrl($route, $tokens), $status);
     }
 
     /**
-     * Redirects to the specified route.
+     * Redirect to a URL.
      *
-     * @param string  $route
+     * @param string  $url
      * @param integer $status
      *
      * @return RedirectResponse
      */
-    public function redirectTo($route, $status = 302)
+    protected function redirect($url, $status = 302)
     {
-        return $this->redirect($this->generateUrl($route), $status);
+        return new RedirectResponse($url, $status);
     }
 
     /**
-     * Easily respond to different request formats.
+     * Add before filter.
      *
-     * @param callable $func
-     *
-     * @return Response
+     * @param string   $action
+     * @param callable $callback
      */
-    public function respondTo($func)
+    protected function before($action, callable $callback)
     {
-        $response = $func($this->route->extension, $this);
-
-        if ($response === null) {
-            return $this->show404();
-        }
-
-        return $response;
+        $this->before[$action][] = $callback;
     }
 
     /**
@@ -234,13 +132,9 @@ class Controller
      */
     public function show404()
     {
-        $this->executeAction = false;
-        return new Response(function ($resp) {
-            $resp->status = 404;
-            $resp->body   = $this->renderView($this->notFoundView, [
-                '_layout' => $this->layout
-            ]);
-        });
+        $resp = $this->render('errors/404.phtml');
+        $resp->status = 404;
+        return $resp;
     }
 
     /**
@@ -250,17 +144,8 @@ class Controller
      */
     public function show403()
     {
-        $this->executeAction = false;
-        return new Response(function ($resp) {
-            $resp->status = 404;
-            $resp->body   = $this->renderView($this->notFoundView, [
-                '_layout' => $this->layout
-            ]);
-        });
+        $resp = $this->render('errors/403.phtml');
+        $resp->status = 403;
+        return $resp;
     }
-
-    /**
-     * Handles controller shutdown.
-     */
-    public function __shutdown() {}
 }
