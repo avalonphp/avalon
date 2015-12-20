@@ -18,6 +18,8 @@
 
 namespace Avalon\Http;
 
+use Avalon\Routing\Router;
+
 /**
  * HTTP Request.
  *
@@ -30,11 +32,6 @@ class Request
     const HTTP_MOVED_PERMANENTLY = 301;
     const HTTP_FOUND             = 302;
     const HTTP_SEE_OTHER         = 303;
-
-    /**
-     * @var Request
-     */
-    protected static $instance;
 
     /**
      * Holds the $_GET parameters.
@@ -83,46 +80,55 @@ class Request
      *
      * @var string
      */
-    protected static $method;
+    public static $method;
 
     /**
      * @var string
      */
-    protected static $pathInfo;
+    public static $pathInfo;
 
     /**
      * @var string
      */
-    protected static $requestUri;
+    public static $requestUri;
 
     /**
      * @var string
      */
-    protected static $basePath;
+    public static $requestPath;
 
     /**
      * @var string
      */
-    protected static $baseUrl;
+    public static $basePath;
+
+    /**
+     * @var string
+     */
+    public static $baseUrl;
+
+    public function __construct()
+    {
+        static::init();
+    }
 
     /**
      * Sets up the request.
      */
-    public function __construct()
+    public static function init()
     {
-        static::$instance = $this;
-
         static::$query      = new ParameterBag($_GET);
         static::$post       = new ParameterBag($_POST);
         static::$properties = new ParameterBag();
         static::$server     = new ParameterBag($_SERVER);
         static::$files      = $_FILES; // Need to make a custom ParameterBag for this.
         static::$headers    = static::buildHeaderBag();
+        static::$method     = static::method();
 
-        static::$baseUrl    = static::prepareBaseUrl();
-        static::$basePath   = static::prepareBasePath();
-        static::$requestUri = static::prepareRequestUri();
-        static::$pathInfo   = static::preparePathInfo();
+        static::$baseUrl     = static::prepareBaseUrl();
+        static::$basePath    = static::prepareBasePath();
+        static::$requestUri  = static::prepareRequestUri();
+        static::$pathInfo    = static::preparePathInfo();
     }
 
     /**
@@ -152,6 +158,10 @@ class Request
      */
     public static function matches($path)
     {
+        foreach (Router::$tokens as $token => $value) {
+            $path = str_replace("{{$token}}", $value, $path);
+        }
+
         return preg_match("#^{$path}$#", static::$pathInfo);
     }
 
@@ -161,7 +171,11 @@ class Request
     public static function method()
     {
         if (!static::$method) {
-            static::$method = $_SERVER['REQUEST_METHOD'];
+            if (static::$post->has('_method')) {
+                static::$method = strtoupper(static::$post->get('_method'));
+            } else {
+                static::$method = $_SERVER['REQUEST_METHOD'];
+            }
         }
 
         return static::$method;
@@ -221,7 +235,7 @@ class Request
             }
         }
 
-        return static::$server->get('SERVER_PORT');
+        return (int) static::$server->get('SERVER_PORT');
     }
 
     /**
@@ -245,7 +259,23 @@ class Request
      */
     public static function basePath($append = null)
     {
+        if (!static::$basePath) {
+            static::$basePath = static::prepareBasePath();
+        }
+
         return static::$basePath . ($append ? '/' . ltrim($append, '/') : '');
+    }
+
+    /**
+     * @return string
+     */
+    public static function baseUrl($append = null)
+    {
+        if (!static::$baseUrl) {
+            static::$baseUrl = static::prepareBaseUrl();
+        }
+
+        return static::$baseUrl . ($append ? '/' . ltrim($append, '/') : '');
     }
 
     /**
@@ -253,6 +283,10 @@ class Request
      */
     public static function pathInfo()
     {
+        if (!static::$pathInfo) {
+            static::$pathInfo = static::preparePathInfo();
+        }
+
         return static::$pathInfo;
     }
 
@@ -261,6 +295,10 @@ class Request
      */
     public static function requestUri()
     {
+        if (!static::$requestUri) {
+            static::$requestUri = static::prepareRequestUri();
+        }
+
         return static::$requestUri;
     }
 
@@ -309,55 +347,180 @@ class Request
         $query = [];
 
         foreach ($data as $name => $value) {
-            $query[] = "{$name}=" . ($urlEncode ? urlencode($value) : $value);
+            if ($value) {
+                $query[] = "{$name}=" . ($urlEncode ? urlencode($value) : $value);
+            } else {
+                $query[] = $name;
+            }
         }
 
         if (count($query)) {
-            return '?' . implode('&', $query);
+            return implode('&', $query);
         }
     }
 
+    // =========================================================================
+
+    /*!
+     * The following methods are derived from code of the Zend Framework (1.10dev - 2010-01-24)
+     *
+     * Code subject to the new BSD license (http://framework.zend.com/license/new-bsd).
+     *
+     * Copyright (c) 2005-2010 Zend Technologies USA Inc. (http://www.zend.com)
+     */
+
+    /*
+     * Returns the prefix as encoded in the string when the string starts with
+     * the given prefix, false otherwise.
+     *
+     * @param string $string The urlencoded string
+     * @param string $prefix The prefix not encoded
+     *
+     * @return string|false The prefix as it is encoded in $string, or false
+     */
+    protected static function urlencodedPrefix($string, $prefix)
+    {
+        if (0 !== strpos(rawurldecode($string), $prefix)) {
+            return false;
+        }
+
+        $len = strlen($prefix);
+
+        if (preg_match(sprintf('#^(%%[[:xdigit:]]{2}|.){%d}#', $len), $string, $match)) {
+            return $match[0];
+        }
+
+        return false;
+    }
+
+    protected static function prepareRequestUri()
+    {
+        $requestUri = '';
+
+        if (static::$headers->has('X_ORIGINAL_URL')) {
+            // IIS with Microsoft Rewrite Module
+            $requestUri = static::$headers->get('X_ORIGINAL_URL');
+            static::$headers->remove('X_ORIGINAL_URL');
+            static::$server->remove('HTTP_X_ORIGINAL_URL');
+            static::$server->remove('UNENCODED_URL');
+            static::$server->remove('IIS_WasUrlRewritten');
+        } elseif (static::$headers->has('X_REWRITE_URL')) {
+            // IIS with ISAPI_Rewrite
+            $requestUri = static::$headers->get('X_REWRITE_URL');
+            static::$headers->remove('X_REWRITE_URL');
+        } elseif (static::$server->get('IIS_WasUrlRewritten') == '1' && static::$server->get('UNENCODED_URL') != '') {
+            // IIS7 with URL Rewrite: make sure we get the unencoded URL (double slash problem)
+            $requestUri = static::$server->get('UNENCODED_URL');
+            static::$server->remove('UNENCODED_URL');
+            static::$server->remove('IIS_WasUrlRewritten');
+        } elseif (static::$server->has('REQUEST_URI')) {
+            $requestUri = static::$server->get('REQUEST_URI');
+            // HTTP proxy reqs setup request URI with scheme and host [and port] + the URL path, only use URL path
+            $schemeAndHttpHost = static::schemeAndHttpHost();
+            if (strpos($requestUri, $schemeAndHttpHost) === 0) {
+                $requestUri = substr($requestUri, strlen($schemeAndHttpHost));
+            }
+        } elseif (static::$server->has('ORIG_PATH_INFO')) {
+            // IIS 5.0, PHP as CGI
+            $requestUri = static::$server->get('ORIG_PATH_INFO');
+            if ('' != static::$server->get('QUERY_STRING')) {
+                $requestUri .= '?'.static::$server->get('QUERY_STRING');
+            }
+            static::$server->remove('ORIG_PATH_INFO');
+        }
+
+        // normalize the request URI to ease creating sub-requests from this request
+        static::$server->set('REQUEST_URI', $requestUri);
+
+        return $requestUri;
+    }
+
     /**
+     * Prepares the base URL.
+     *
      * @return string
      */
     protected static function prepareBaseUrl()
     {
-        $fileName = basename(static::$server->get('SCRIPT_FILENAME'));
+        $filename = basename(static::$server->get('SCRIPT_FILENAME'));
 
-        if ($fileName === basename(static::$server->get('SCRIPT_NAME'))) {
+        if (basename(static::$server->get('SCRIPT_NAME')) === $filename) {
             $baseUrl = static::$server->get('SCRIPT_NAME');
-        } elseif ($fileName === basename(static::$server->get('PHP_SELF'))) {
+        } elseif (basename(static::$server->get('PHP_SELF')) === $filename) {
             $baseUrl = static::$server->get('PHP_SELF');
-        } elseif ($fileName === basename(static::$server->get('ORIG_SCRIPT_NAME'))) {
-            $baseUrl = static::$server->get('ORIG_SCRIPT_NAME');
+        } elseif (basename(static::$server->get('ORIG_SCRIPT_NAME')) === $filename) {
+            $baseUrl = static::$server->get('ORIG_SCRIPT_NAME'); // 1and1 shared hosting compatibility
+        } else {
+            // Backtrack up the script_filename to find the portion matching
+            // php_self
+            $path = static::$server->get('PHP_SELF', '');
+            $file = static::$server->get('SCRIPT_FILENAME', '');
+            $segs = explode('/', trim($file, '/'));
+            $segs = array_reverse($segs);
+            $index = 0;
+            $last = count($segs);
+            $baseUrl = '';
+            do {
+                $seg = $segs[$index];
+                $baseUrl = '/'.$seg.$baseUrl;
+                ++$index;
+            } while ($last > $index && (false !== $pos = strpos($path, $baseUrl)) && 0 != $pos);
         }
 
-        if (strpos($baseUrl, '?') !== false) {
-            $baseUrl = explode('?', $baseUrl)[0];
+        // Does the baseUrl have anything in common with the request_uri?
+        $requestUri = static::requestUri();
+
+        if ($baseUrl && false !== $prefix = static::urlencodedPrefix($requestUri, $baseUrl)) {
+            // full $baseUrl matches
+            return $prefix;
         }
 
-        return rtrim(str_replace($fileName, '', $baseUrl), '/');
+        if ($baseUrl && false !== $prefix = static::urlencodedPrefix($requestUri, rtrim(dirname($baseUrl), '/'.DIRECTORY_SEPARATOR).'/')) {
+            // directory portion of $baseUrl matches
+            return rtrim($prefix, '/'.DIRECTORY_SEPARATOR);
+        }
+
+        $truncatedRequestUri = $requestUri;
+        if (false !== $pos = strpos($requestUri, '?')) {
+            $truncatedRequestUri = substr($requestUri, 0, $pos);
+        }
+
+        $basename = basename($baseUrl);
+        if (empty($basename) || !strpos(rawurldecode($truncatedRequestUri), $basename)) {
+            // no match whatsoever; set it blank
+            return '';
+        }
+
+        // If using mod_rewrite or ISAPI_Rewrite strip the script filename
+        // out of baseUrl. $pos !== 0 makes sure it is not matching a value
+        // from PATH_INFO or QUERY_STRING
+        if (strlen($requestUri) >= strlen($baseUrl) && (false !== $pos = strpos($requestUri, $baseUrl)) && $pos !== 0) {
+            $baseUrl = substr($requestUri, 0, $pos + strlen($baseUrl));
+        }
+
+        return rtrim($baseUrl, '/'.DIRECTORY_SEPARATOR);
     }
 
     /**
-     * @return string
+     * Prepares the base path.
+     *
+     * @return string base path
      */
     protected static function prepareBasePath()
     {
-        $fileName = basename(static::$server->get('SCRIPT_FILENAME'));
-        $baseUrl  = static::$baseUrl;
-
+        $filename = basename(static::$server->get('SCRIPT_FILENAME'));
+        $baseUrl = static::baseUrl();
         if (empty($baseUrl)) {
             return '';
         }
 
-        if ($fileName === basename($baseUrl)) {
+        if (basename($baseUrl) === $filename) {
             $basePath = dirname($baseUrl);
         } else {
             $basePath = $baseUrl;
         }
 
-        if (DIRECTORY_SEPARATOR === '\\') {
+        if ('\\' === DIRECTORY_SEPARATOR) {
             $basePath = str_replace('\\', '/', $basePath);
         }
 
@@ -365,78 +528,33 @@ class Request
     }
 
     /**
-     * @return string
+     * Prepares the path info.
+     *
+     * @return string path info
      */
-    public static function preparePathInfo()
+    protected static function preparePathInfo()
     {
-        $requestUri = static::$requestUri;
-        $baseUrl    = static::$baseUrl;
+        $baseUrl = static::baseUrl();
 
-        if ($baseUrl === null || $requestUri === null) {
+        if (null === ($requestUri = static::requestUri())) {
             return '/';
         }
 
         $pathInfo = '/';
 
-        // Remove the query string
+        // Remove the query string from REQUEST_URI
         if ($pos = strpos($requestUri, '?')) {
             $requestUri = substr($requestUri, 0, $pos);
         }
 
-        if (false === $pathInfo = substr($requestUri, strlen($baseUrl))) {
+        $pathInfo = substr($requestUri, strlen($baseUrl));
+        if (null !== $baseUrl && (false === $pathInfo || '' === $pathInfo)) {
+            // If substr() returns false then PATH_INFO is set to an empty string
+            return '/';
+        } elseif (null === $baseUrl) {
             return $requestUri;
         }
 
-        return $pathInfo;
-    }
-
-    /**
-     * @return string
-     */
-    protected static function prepareRequestUri()
-    {
-        $requestUri = '';
-
-        // Microsoft IIS Rewrite Module
-        if (static::$headers->has('X-Original-Url')) {
-            $requestUri = static::$headers->get('X-Original-Url');
-        }
-        // IIS ISAPI_Rewrite
-        elseif (static::$headers->has('X-Rewrite-Url')) {
-            $requestUri = static::$headers->get('X-Rewrite-Url');
-        }
-        // IIS7 URL Rewrite
-        elseif (static::$server->get('IIS_WasUrlRewritten') == '1' && static::$server->get('UNENCODED_URL') != '') {
-            $requestUri = static::$server->get('UNENCODED_URL');
-        }
-        // HTTP proxy, request URI with scheme, host and port + the URL path
-        elseif (static::$server->has('REQUEST_URI')) {
-            $requestUri = static::$server->get('REQUEST_URI');
-            $schemeAndHttpHost = static::schemeAndHttpHost();
-            if (strpos($requestUri, $schemeAndHttpHost) === 0) {
-                $requestUri = substr($requestUri, strlen($schemeAndHttpHost));
-            }
-        }
-        // IIS 5, PHP as CGI
-        elseif (static::$server->has('ORIG_PATH_INFO')) {
-            $requestUri = static::$server->get('ORIG_PATH_INFO');
-
-            if (static::$queryString != '') {
-                $requestUri .= '?' . static::$server->get('ORIG_PATH_INFO');
-            }
-        }
-
-        static::$server->set('REQUEST_URI', $requestUri);
-        return $requestUri;
-    }
-
-    /**
-     * Get the instantiated request instance instead of creating a new one.
-     *
-     * @return Request
-     */
-    public static function getInstance()
-    {
-        return static::$instance;
+        return (string) $pathInfo;
     }
 }
