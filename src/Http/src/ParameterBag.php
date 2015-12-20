@@ -102,6 +102,16 @@ class ParameterBag implements ArrayAccess
     }
 
     /**
+     * Delete property.
+     *
+     * @param string $property
+     */
+    public function delete($property)
+    {
+        unset($this->properties[$property]);
+    }
+
+    /**
      * @param string $property
      *
      * @return boolean
