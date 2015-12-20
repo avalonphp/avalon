@@ -19,14 +19,8 @@
 namespace Avalon;
 
 use Exception;
-use ReflectionObject;
-use Avalon\Kernel;
-use Avalon\Database\ConnectionManager;
-use Avalon\Routing\Router;
-use Avalon\Http\Request;
-use Avalon\Http\Response;
+use ReflectionClass;
 use Avalon\Templating\View;
-use Avalon\Templating\Engines\PhpEngine;
 
 /**
  * Application kernel.
@@ -38,106 +32,93 @@ use Avalon\Templating\Engines\PhpEngine;
 class AppKernel
 {
     /**
-     * Application directory.
+     * Application directory path.
      *
      * @var string
      */
     protected $path;
 
     /**
-     * Application config.
+     * Configuration directory path.
+     *
+     * @var string
+     */
+    protected $configDir;
+
+    /**
+     * Configuration.
      *
      * @var array
      */
     protected $config;
 
-    /**
-     * @var ReflectionObject
-     */
-    protected $classInfo;
-
     public function __construct()
     {
-        $this->classInfo = new ReflectionObject($this);
-        $this->path = dirname($this->classInfo->getFilename());
+        $r = new \ReflectionObject($this);
+        $this->path = dirname($r->getFileName());
+        $this->configDir = dirname($this->path) . '/config';
 
         $this->loadConfiguration();
-        $this->connectDatabase();
         $this->loadRoutes();
-        $this->setupTemplating();
+
+        $this->configureEnvironment();
+        $this->configureTemplating();
     }
 
     /**
-     * Loads the applications configuration.
+     * Load configuration.
      */
     protected function loadConfiguration()
     {
-        $path = "{$this->path}/config/config.php";
-
-        if (file_exists($path)) {
-            $this->config = require $path;
+        if (file_exists("{$this->configDir}/config.php")) {
+            $this->config = require "{$this->configDir}/config.php";
 
             if (isset($this->config['environment'])) {
                 $_ENV['environment'] = $this->config['environment'];
-
-                // Load environment
-                $environemntPath = "{$this->path}/config/environment/{$_ENV['environment']}.php";
-                if (file_exists($environemntPath)) {
-                    require $environemntPath;
-                }
             }
         } else {
-            throw new Exception("Error loading configuration file: [{$path}]");
+            throw new Exception("Unable to load config file");
         }
     }
 
     /**
-     * Setup database connection for current environment.
-     */
-    protected function connectDatabase()
-    {
-        if (isset($this->config['database'])
-        && isset($this->config['database'][$this->config['environment']])) {
-            ConnectionManager::create($this->config['database'][$this->config['environment']]);
-        }
-    }
-
-    /**
-     * Loads the applications routes.
+     * Load routes.
      */
     protected function loadRoutes()
     {
-        $path = "{$this->path}/config/routes.php";
-
-        if (file_exists($path)) {
-            require $path;
+        if (file_exists("{$this->configDir}/routes.php")) {
+            require "{$this->configDir}/routes.php";
         } else {
-            throw new Exception("Error loading routes file: [{$path}]");
+            throw new Exception("Unable to load routes file");
         }
     }
 
     /**
-     * Setup templating.
+     * Load the environment configuration file.
      */
-    protected function setupTemplating()
+    protected function configureEnvironment()
     {
-        View::setEngine(new PhpEngine);
+        if (isset($this->config['environment'])) {
+            if (file_exists("{$this->configDir}/environment/{$this->config['environment']}.php")) {
+                require "{$this->configDir}/environment/{$this->config['environment']}.php";
+            }
+        }
+    }
+
+    /**
+     * Setup the view class.
+     */
+    protected function configureTemplating()
+    {
+        View::setEngine(new \Avalon\Templating\Engines\PhpEngine);
         View::addPath("{$this->path}/views");
     }
 
     /**
-     * Process the request and route to the controller.
-     *
-     * @param Request $request Optional request
+     * Process the request.
      */
-    public function run(Request $request = null)
+    public function run()
     {
-        if (!$request) {
-            $request = new Request;
-        }
-
-        $route = Router::process($request);
-
-        return Kernel::execute($request, $route);
+        Kernel::process()->send();
     }
 }

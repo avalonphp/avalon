@@ -19,10 +19,10 @@
 namespace Avalon;
 
 use Exception;
-use ReflectionMethod;
-use Avalon\Routing\Route;
 use Avalon\Http\Request;
 use Avalon\Http\Response;
+use Avalon\Routing\Router;
+use Avalon\Routing\Route;
 
 /**
  * Avalon kernel.
@@ -33,72 +33,69 @@ use Avalon\Http\Response;
  */
 class Kernel
 {
-    const VERSION = "2.0.0";
+    const VERSION = '2.0.0';
 
     /**
-     * Execute the route.
-     *
-     * @param Route $route
+     * Route the request and execute the controller.
      */
-    public static function execute(Request $request, Route $route)
+    public static function process()
     {
-        if (!class_exists($route->controller)
-        || !method_exists($route->controller, "{$route->action}Action")) {
-            throw new Exception("Unable to find controller [{$route->controller}::{$route->action}Action]");
-        }
+        Request::init();
+        $route = Router::process();
 
-        // Get controller action parameters
-        $actionParams = static::getParameters($route);
+        if ($route) {
+            list($class, $method) = explode('::', $route->controller);
+            $action = "{$method}Action";
 
-        // Instantiate the controller
-        $controller = new $route->controller;
+            if (!class_exists($class)) {
+                throw new Exception("Controller class [{$class}] not found");
+            }
 
-        // Run before filters
-        $response = $controller->runBeforeFilters($route->action);
+            if (!method_exists($class, $action)) {
+                throw new Exception("Controller action [{$route->controller}Action] not found");
+            }
 
-        // Execute action
-        if (!$response instanceof Response) {
-            $response = call_user_func_array([$controller, "{$route->action}Action"], $actionParams);
-        }
+            $controller = new $class;
 
-        // Run after filters
-        $afterResponse = $controller->runAfterFilters($route->action);
+            $response = static::runFilters('before', $controller, $method);
 
-        if ($afterResponse instanceof Response) {
-            $response = $afterResponse;
-        }
+            if (!$response) {
+                $response = call_user_func_array([$controller, $action], $route->actionParams());
+            }
 
-        // Shutdown the controller
-        $controller->__shutdown();
+            static::runFilters('after', $controller, $method);
 
-        // Send response
-        if (!$response instanceof Response) {
-            $message = "The controller [{$route->controller}::{$route->action}Action] returned an invalid response.";
-            throw new Exception($message);
-        } else {
+            if (!($response instanceof Response)) {
+                throw new Exception("The controller returned an invalid response");
+            }
+
             return $response;
+        } else {
+            throw new Exception(sprintf("No route matches [%s]", Request::$pathInfo));
         }
     }
 
     /**
-     * Get the routed actions parameters.
+     * Run the before/action filters for the controllers action.
      *
-     * @param Route $route
-     *
-     * @return array
+     * @param  string     $when
+     * @param  Controller $controller
+     * @param  string     $method
+     * @return Response
      */
-    protected static function getParameters(Route $route)
+    protected static function runFilters($when, $controller, $method)
     {
-        $methodInfo = new ReflectionMethod("{$route->controller}::{$route->action}Action");
-        $params = [];
+        $filters = array_merge(
+            isset($controller->{$when}['*']) ? $controller->{$when}['*'] : [],
+            isset($controller->{$when}[$method]) ? $controller->{$when}[$method] : []
+        );
 
-        foreach ($methodInfo->getParameters() as $param) {
-            if (isset($route->params[$param->getName()])) {
-                $params[] = $route->params[$param->getName()];
+        foreach ($filters as $filter) {
+            $response = $filter();
+
+            if ($response) {
+                return $response;
             }
         }
-
-        unset($methodInfo, $param);
-        return $params;
     }
 }
