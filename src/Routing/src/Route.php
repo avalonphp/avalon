@@ -18,6 +18,9 @@
 
 namespace Avalon\Routing;
 
+use ReflectionMethod;
+use InvalidArgumentException;
+
 /**
  * HTTP Route.
  *
@@ -28,160 +31,117 @@ namespace Avalon\Routing;
 class Route
 {
     /**
-     * Route name.
-     *
      * @var string
      */
     public $name;
 
     /**
-     * Route path.
-     *
      * @var string
      */
     public $path;
 
     /**
-     * Compiled route.
-     *
      * @var string
      */
-    public $compiledPath;
+    protected $compiledPath;
 
     /**
-     * Controller class.
-     *
      * @var string
      */
     public $controller;
 
     /**
-     * Controller method/action.
-     *
-     * @var string
-     */
-    public $action;
-
-    /**
-     * Default params.
-     *
      * @var array
      */
     public $defaults = [];
 
     /**
-     * Routed params.
-     *
-     * @param array
+     * @var array
      */
     public $params = [];
 
     /**
-     * Accepted HTTP request methods.
-     *
-     * @var string[]
+     * @var array
      */
-    public $methods = ['get', 'post'];
+    public $methods = ['GET'];
 
     /**
-     * Route extension.
-     *
-     * @var string
-     */
-    public $extension = 'html';
-
-    /**
-     * Creates a new route.
-     *
-     * @param string $path
-     * @param string $name Route name
-     */
-    public function __construct($path, $name = null)
-    {
-        $this->path = $path;
-        $this->name = $name;
-    }
-
-    /**
-     * Destination class and method of route.
-     *
-     * @param string $controller Class and method to route to
-     * @param array  $defaults   Arguments to pass to the routed method
-     *
-     * @example
-     *     to('Admin\Settings::index')
-     *
-     * @return Route
-     */
-    public function to($controller, array $defaults = [])
-    {
-        if ($this->name === null) {
-            $this->name = strtolower(
-                str_replace(['\\', '::'], '_', $controller)
-            );
-        }
-
-        $controller = explode('::', $controller);
-
-        $this->controller = $controller[0];
-        $this->action     = $controller[1];
-        $this->defaults   = $defaults;
-
-        return $this;
-    }
-
-    /**
-     * Sets the routes name.
-     *
      * @param string $name
-     *
-     * @return Route
+     * @param string $path
+     * @param string $controller
+     * @param array  $defaults
      */
-    public function name($name)
+    public function __construct($name, $path, $controller, array $defaults = [])
     {
         $this->name = $name;
-        return $this;
+        $this->path = $path;
+        $this->controller = $controller;
+        $this->defaults = $defaults;
+
+        if (strpos($controller, '::') === false) {
+            throw new InvalidArgumentException("Controller format must match [Class::method], was: [{$controller}]");
+        }
     }
 
     /**
-     * HTTP methods to accept.
+     * Set allowed method(s).
      *
-     * @param mixed $method
-     *
-     * @example
-     *     method('get');
-     *     method(['get', 'post']);
+     * @param string|array $method
      *
      * @return Route
      */
     public function method($method)
     {
-        // Convert to an array if needed
-        if (!is_array($method)) {
-            $method = [$method];
-        }
+        $this->methods = (array) $method;
 
-        $this->methods = $method;
         return $this;
     }
 
     /**
-     * Generates the path, replacing tokens with specified values.
-     *
-     * @param array $tokens
+     * Get the compiled path.
      *
      * @return string
      */
-    public function generateUrl(array $tokens = [])
+    public function compiledPath()
     {
-        $path = $this->path;
+        if (!$this->compiledPath) {
+            $this->compilePath();
+        }
 
-        foreach ($tokens as $key => $value) {
-            if (!is_array($value)) {
-                $path = str_replace("{{$key}}", $value, $path);
+        return $this->compiledPath;
+    }
+
+    /**
+     * Compile the route path and replace parameters with their regex value.
+     */
+    public function compilePath()
+    {
+        $this->compiledPath = $this->path;
+
+        foreach (Router::$tokens as $name => $value) {
+            $this->compiledPath = str_replace("{{$name}}", $value, $this->compiledPath);
+        }
+    }
+
+    /**
+     * Returns the parameters from the controllers action.
+     *
+     * @return array
+     */
+    public function actionParams()
+    {
+        $methodInfo = new ReflectionMethod("{$this->controller}Action");
+
+        $routeParams = $this->params + $this->defaults;
+        $params = [];
+
+        foreach ($methodInfo->getParameters() as $param) {
+            if (isset($routeParams[$param->getName()])) {
+                $params[] = $routeParams[$param->getName()];
             }
         }
 
-        return $path;
+        unset($methodInfo, $param);
+        return $params;
     }
 }

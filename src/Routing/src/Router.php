@@ -20,7 +20,6 @@ namespace Avalon\Routing;
 
 use Exception;
 use Avalon\Http\Request;
-use Avalon\Util\Inflector;
 
 /**
  * HTTP Router.
@@ -32,21 +31,7 @@ use Avalon\Util\Inflector;
 class Router
 {
     /**
-     * Regex delimiter to use.
-     *
-     * @var string
-     */
-    protected static $regexDelimiter = '%';
-
-    /**
-     * Current route.
-     *
-     * @var Route
-     */
-    protected static $currentRoute;
-
-    /**
-     * Registered routes.
+     * Routes.
      *
      * @var array
      */
@@ -57,7 +42,7 @@ class Router
      *
      * @var array
      */
-    protected static $tokens = [
+    public static $tokens = [
         'id'   => "(?<id>\d+)",
         'slug' => "(?<slug>[^/]+)"
     ];
@@ -70,312 +55,211 @@ class Router
     public static $extensions = ['.json', '.atom'];
 
     /**
-     * Routed controller class.
+     * Add route token.
      *
-     * @var string
+     * @param string $name
+     * @param mixed  $regex
      */
-    public static $controller;
-
-    /**
-     * Routed controller method/action.
-     *
-     * @var string
-     */
-    public static $action;
-
-    /**
-     * Route parameters.
-     *
-     * @var array
-     */
-    public static $params;
-
-    /**
-     * Route defaults.
-     *
-     * @var array
-     */
-    public static $defaults;
-
-    /**
-     * Route extension.
-     *
-     * @var string
-     */
-    public static $extension;
-
-    /**
-     * Return the routes array.
-     */
-    public static function getRoutes()
+    public static function addToken($name, $regex)
     {
-        return static::$routes;
+        static::$tokens[$name] = $regex;
     }
 
     /**
-     * Closure style routing.
+     * Set root controller
      *
-     * @example
-     *     Router::map(funtion($r)) {
-     *         $r->root('Controller.action');
-     *     });
+     * @param string $controller
+     *
+     * @return Route
      */
-    public static function map($block)
+    public static function root($controller)
     {
-        $block(new static);
+        return static::get('root', '/', $controller);
     }
 
     /**
-     * Returns compiled path for the route.
+     * Set 404 route.
      *
-     * @param string $name   Route name.
-     * @param array  $tokens Token values for route.
-     *
-     * @return string
-     *
-     * @throws Exception
+     * @param string $controller
      */
-    public static function generateUrl($name, $tokens = [])
+    public static function set404($controller)
     {
-        if (isset(static::$routes[$name])) {
-            $route = static::$routes[$name];
-        } else {
-            foreach (static::$routes as $r) {
-                if ($r->name === $name) {
-                    $route = $r;
-                }
-            }
-        }
+        return static::route('404', '404', $controller);
+    }
 
-        if (isset($route)) {
-            return $route->generateUrl($tokens);
-        } else {
+    /**
+     * Route `GET` request.
+     *
+     * @param  string $name
+     * @param  string $path
+     * @param  string $controller
+     * @param  array  $defaults
+     *
+     * @return Route
+     */
+    public static function get($name, $path, $controller, array $defaults = [])
+    {
+        return static::$routes[$name] = new Route($name, $path, $controller, $defaults);
+    }
+
+    /**
+     * Route `POST` request.
+     *
+     * @see Route::get()
+     *
+     * @return Route
+     */
+    public static function post($name, $path, $controller, array $defaults = [])
+    {
+        static::$routes[$name] = new Route($name, $path, $controller, $defaults);
+        static::$routes[$name]->method('POST');
+        return static::$routes[$name];
+    }
+
+    /**
+     * Route `DELETE` request.
+     *
+     * @see Route::get()
+     *
+     * @return Route
+     */
+    public static function delete($name, $path, $controller, array $defaults = [])
+    {
+        static::$routes[$name] = new Route($name, $path, $controller, $defaults);
+        static::$routes[$name]->method('DELETE');
+        return static::$routes[$name];
+    }
+
+    /**
+     * Route `PUT` request.
+     *
+     * @see Route::get()
+     *
+     * @return Route
+     */
+    public static function put($name, $path, $controller, array $defaults = [])
+    {
+        static::$routes[$name] = new Route($name, $path, $controller, $defaults);
+        static::$routes[$name]->method('PUT');
+        return static::$routes[$name];
+    }
+
+    /**
+     * Route `PATCH` request.
+     *
+     * @see Route::get()
+     *
+     * @return Route
+     */
+    public static function patch($name, $path, $controller, array $defaults = [])
+    {
+        static::$routes[$name] = new Route($name, $path, $controller, $defaults);
+        static::$routes[$name]->method('PATCH');
+        return static::$routes[$name];
+    }
+
+    /**
+     * Return the route that matches the name.
+     *
+     * @param  string $name
+     *
+     * @return Route
+     */
+    public static function getRoute($name)
+    {
+        if (!isset(static::$routes[$name])) {
             throw new Exception("No route with name [{$name}]");
         }
+
+        return static::$routes[$name];
     }
 
     /**
-     * Sets the root route.
+     * Generate the routes path and replace and placeholders wiht the value.
      *
-     * @param string $to Controller to route the root URL to.
-     */
-    public static function root($to = null)
-    {
-        static::$routes['root'] = new Route('/', 'root');
-
-        if ($to) {
-            static::$routes['root']->to($to);
-        }
-
-        return static::$routes['root'];
-    }
-
-    /**
-     * Shortcut for `Router::route(...)->method('get')`
-     *
-     * @param string $route
-     * @param string $name  Route name
-     */
-    public static function get($route, $name = null)
-    {
-        return static::route($route, $name)->method('get');
-    }
-
-    /**
-     * Shortcut for `Router::route(...)->method('post')`
-     *
-     * @param string $route
-     * @param string $name  Route name
-     */
-    public static function post($route, $name = null)
-    {
-        return static::route($route, $name)->method('post');
-    }
-
-    /**
-     * Shortcut for setting up the routes for a resource.
-     *
-     * @param string $resource   Resource/model name.
-     * @param string $controller Controller to use for the resource.
-     */
-    public static function resources($modelName, $controllerName, array $options = [])
-    {
-        $options = $options + [
-            'name'       => Inflector::underscore($modelName),
-            'namePrefix' => null,
-            'pathPrefix' => null,
-            'token'      => "{id}"
-        ];
-
-        // Append name prefix
-        if ($options['namePrefix']) {
-            $options['name'] = "{$options['namePrefix']}_{$options['name']}";
-        }
-
-        $path = '/'. ltrim($options['pathPrefix'], '/') . Inflector::underscore(Inflector::controllerise($modelName));
-
-        // Index
-        static::get($path, Inflector::pluralise($options['name']))
-            ->to($controllerName . '::index');
-
-        // New
-        static::get($path . '/new', 'new_' . $options['name'])
-            ->to($controllerName . '::new');
-
-        // Create
-        static::post($path . '/new')->to($controllerName . '::create');
-
-        // Show
-        static::get($path . "/{$options['token']}", 'show_' . Inflector::singularise($options['name']))
-            ->to($controllerName . '::show');
-
-        // Edit
-        static::get($path . "/{$options['token']}/edit", 'edit_' . $options['name'])
-            ->to($controllerName . '::edit');
-
-        // Save
-        static::post($path . "/{$options['token']}/edit")->to($controllerName . '::save');
-
-        // Delete / Destroy confirmation
-        static::get($path . "/{$options['token']}/delete", 'delete_' . $options['name'])
-            ->to($controllerName . '::delete');
-
-        // Destroy
-        static::post($path . "/{$options['token']}/delete")->to($controllerName . '::destroy');
-    }
-
-    /**
-     * Adds a new route.
-     *
-     * @param string $route URI to route
-     * @param string $name  Route name
-     */
-    public static function route($route, $name = null)
-    {
-        // 404 Route
-        if ($route == '404') {
-            return static::$routes['404'] = new Route('404', '404');
-        }
-
-        if ($name) {
-            return static::$routes[$name] = new Route($route, $name);
-        } else {
-            return static::$routes[] = new Route($route);
-        }
-    }
-
-    /**
-     * Routes the request to the controller.
-     *
-     * @param Request $request
-     */
-    public static function process(Request $request)
-    {
-        $requestPath = str_replace(basename($request->scriptFilename()), '', $request->pathInfo());
-        $requestPath = '/' . trim($requestPath, '/');
-
-        $extensions  = static::extensionsRegex();
-
-        if ($requestPath == '/') {
-            if (!isset(static::$routes['root'])) {
-                throw new Exception("No root route set.");
-            }
-
-            return static::setRoute(static::$routes['root']);
-        }
-
-        foreach (static::$routes as $route) {
-            $route->compiledPath = static::compilePath($route->path);
-            $pattern = static::regex($route->compiledPath);
-
-            // Match exact path and request method
-            if ($route->path == $requestPath
-            && in_array(strtolower($request->method()), $route->methods)) {
-                $route->params = $route->defaults;
-                return static::setRoute($route);
-            }
-            // Regex match
-            elseif (preg_match($pattern, $requestPath, $params)) {
-                unset($params[0]);
-
-                // Merge params
-                $route->params = $params;
-                $route->params = array_merge($route->defaults, $route->params);
-
-                if (in_array(strtolower($request->method()), $route->methods)) {
-                    return static::setRoute($route);
-                }
-            }
-        }
-
-        // No matches, try 404 route
-        if (isset(static::$routes['404'])) {
-            return static::set404();
-        }
-        // No 404 route, Exception time! FUN :D
-        else {
-            throw new Exception("No routes found for '{$requestPath}'");
-        }
-    }
-
-    /**
-     * Replaces tokens in the route with their regex values.
-     *
-     * @param string $route
+     * @param string $routeName
+     * @param array  $tokens
      *
      * @return string
      */
-    public static function compilePath($path)
+    public static function generatePath($routeName, array $tokens = [])
     {
-        foreach (static::$tokens as $token => $regex) {
-            $path = str_replace("{{$token}}", $regex, $path);
+        $tokens = $tokens + Request::$properties->getProperties();
+
+        $route = static::getRoute($routeName);
+
+        $path = $route->path;
+
+        foreach ($tokens as $name => $value) {
+            $path = str_replace("{{$name}}", $value, $path);
         }
 
         return $path;
     }
 
     /**
-     * Sets the route info to that of the 404 route.
+     * Generate the routes URL and replace and placeholders wiht the value.
+     *
+     * @param string $routeName
+     * @param array  $tokens
+     *
+     * @return string
      */
-    public static function set404()
+    public static function generateUrl($routeName, array $tokens = [])
     {
-        if (!isset(static::$routes['404'])) {
-            throw new Exception("There is no 404 route set.");
+        return Request::$basePath . static::generatePath($routeName, $tokens);
+    }
+
+    /**
+     * Process the request.
+     *
+     * @return Route
+     */
+    public static function process()
+    {
+        $requestPath = Request::pathInfo();
+
+        if (Request::pathInfo() === '/') {
+            return static::getRoute('root');
         }
 
-        // Get request file extension
+        foreach (static::$routes as $route) {
+            $pattern = static::regex($route->compiledPath());
+
+            if (!in_array(Request::$method, array_map('strtoupper', $route->methods))) {
+                continue;
+            }
+
+            // Match exact path and request method
+            if ($route->path == $requestPath) {
+                $route->params = $route->defaults;
+                Request::$properties->set($route->params);
+                return $route;
+            }
+            // Regex match
+            elseif (preg_match($pattern, $requestPath, $params)) {
+                unset($params[0]);
+
+                // Merge params
+                $route->params = $params + $route->defaults;
+                Request::$properties->set($route->params);
+
+                return $route;
+            }
+        }
+    }
+
+    /**
+     * Wrap the passed regex pattern and add the file extension pattern.
+     *
+     * @param  string $pattern
+     *
+     * @return string
+     */
+    protected static function regex($pattern)
+    {
         $extensions = static::extensionsRegex();
-        $match = preg_match(static::regex(), Request::$requestUri, $params);
-
-        if (isset($params['extension'])) {
-            static::$routes['404']->params['extension'] = $params['extension'];
-        }
-
-        return static::setRoute(static::$routes['404']);
-    }
-
-    /**
-     * Registers a token to replace in routes.
-     *
-     * @param string $token Token name
-     * @param string $value Regex value
-     *
-     * @example
-     *     Router::addToken('post_id', "(?P<post_id>[0-9]+)");
-     */
-    public static function addToken($token, $value)
-    {
-        static::$tokens[$token] = $value;
-    }
-
-    /**
-     * Returns the current route.
-     *
-     * @return object
-     */
-    public static function currentRoute()
-    {
-        return static::$currentRoute;
+        return "%^{$pattern}{$extensions}$%";
     }
 
     /**
@@ -383,57 +267,14 @@ class Router
      *
      * @return string
      */
-    public static function extensionsRegex()
+    protected static function extensionsRegex()
     {
         $extensions = [];
 
         foreach (static::$extensions as $extension) {
-            $extensions[] = preg_quote($extension, static::$regexDelimiter);
+            $extensions[] = preg_quote($extension, '%');
         }
 
         return "(?P<extension>" . implode("|", $extensions) . ')?';
-    }
-
-    /**
-     * Wraps the path with the regex delimiter and extensions regex.
-     *
-     * @param string $compiledPath
-     *
-     * @return string
-     */
-    public static function regex($compiledPath = '')
-    {
-        $extensions = static::extensionsRegex();
-        return static::$regexDelimiter . "^{$compiledPath}{$extensions}$" . static::$regexDelimiter . "s";
-    }
-
-    /**
-     * Sets the current route.
-     *
-     * @param Route $route
-     *
-     * @return Route
-     */
-    protected static function setRoute($route)
-    {
-        // Set controller extension
-        if (isset($route->params['extension'])) {
-            $route->extension = $route->params['extension'];
-        }
-
-        // Remove the first dot from the extension
-        if ($route->extension[0] == '.') {
-            $route->extension = substr($route->extension, 1);
-        }
-
-        // Allow static use current route info.
-        static::$controller = $route->controller;
-        static::$action     = $route->action;
-        static::$params     = $route->params;
-        static::$extension  = $route->extension;
-
-        Request::$properties->set($route->params);
-
-        return static::$currentRoute = $route;
     }
 }
