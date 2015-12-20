@@ -47,16 +47,27 @@ class Response
      */
     protected $headers = [];
 
-    public function __construct($response = null)
+    /**
+     * Cookies to set.
+     */
+    protected $cookies = [];
+
+    public function __construct($content = '')
     {
-        // Anonymous function to configure the response block-style.
-        if (is_callable($response)) {
-            $response($this);
-        }
-        // String to be used as the body.
-        elseif (is_string($response)) {
-            $this->body = $response;
-        }
+        $this->body = $content;
+    }
+
+    /**
+     * Add cookie.
+     *
+     * @param string  $name
+     * @param string  $value
+     * @param integer $expires
+     * @param string  $path
+     */
+    public function addCookie()
+    {
+        $this->cookies[] = func_get_args();
     }
 
     /**
@@ -98,6 +109,11 @@ class Response
 
         // Set content-type
         header("Content-Type: {$this->contentType}");
+
+        // Set cookies
+        foreach ($this->cookies as $cookie) {
+            call_user_func_array('setcookie', $cookie);
+        }
 
         // Set headers
         foreach ($this->headers as $header) {
