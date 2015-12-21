@@ -52,7 +52,7 @@ class Router
      *
      * @var array
      */
-    public static $extensions = ['.json', '.atom'];
+    public static $extensions = ['json', 'atom'];
 
     /**
      * Add route token.
@@ -279,6 +279,6 @@ class Router
             $extensions[] = preg_quote($extension, '%');
         }
 
-        return "(?P<extension>" . implode("|", $extensions) . ')?';
+        return "(\.(?P<extension>" . implode("|", $extensions) . '))?';
     }
 }
