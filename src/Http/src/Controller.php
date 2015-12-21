@@ -158,7 +158,7 @@ class Controller
      *
      * @return Response
      */
-    public function show404()
+    protected function show404()
     {
         $resp = $this->render('errors/404.phtml');
         $resp->status = 404;
@@ -170,7 +170,7 @@ class Controller
      *
      * @return Response
      */
-    public function show403()
+    protected function show403()
     {
         $resp = $this->render('errors/403.phtml');
         $resp->status = 403;
