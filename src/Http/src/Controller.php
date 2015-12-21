@@ -20,6 +20,7 @@ namespace Avalon\Http;
 
 use Avalon\Templating\View;
 use Avalon\Http\Response;
+use Avalon\Http\JsonResponse;
 use Avalon\Http\RedirectResponse;
 
 /**
@@ -140,6 +141,19 @@ class Controller
     protected function redirect($url, $status = 302)
     {
         return new RedirectResponse($url, $status);
+    }
+
+    /**
+     * JSON response.
+     *
+     * @param string  $content
+     * @param integer $status
+     *
+     * @return JsonResponse
+     */
+    protected function jsonResponse($content = '', $status = 200)
+    {
+        return new JsonResponse($content, $status);
     }
 
     /**
