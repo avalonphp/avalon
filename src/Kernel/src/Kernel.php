@@ -43,6 +43,10 @@ class Kernel
         Request::init();
         $route = Router::process();
 
+        if (!$route) {
+            $route = Router::getRoute('404');
+        }
+
         if ($route) {
             list($class, $method) = explode('::', $route->controller);
             $action = "{$method}Action";
@@ -71,7 +75,7 @@ class Kernel
 
             return $response;
         } else {
-            throw new Exception(sprintf("No route matches [%s]", Request::$pathInfo));
+            throw new Exception(sprintf("No route matches [%s] and no 404 controller set", Request::$pathInfo));
         }
     }
 
