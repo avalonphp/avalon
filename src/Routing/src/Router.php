@@ -184,9 +184,13 @@ class Router
      */
     public static function generatePath($routeName, array $tokens = [])
     {
-        $tokens = $tokens + Request::$properties->getProperties();
-
         $route = static::getRoute($routeName);
+
+        if (!$route) {
+            throw new Exception("No route with name [{$routeName}]");
+        }
+
+        $tokens = $tokens + Request::$properties->getProperties();
 
         $path = $route->path;
 
