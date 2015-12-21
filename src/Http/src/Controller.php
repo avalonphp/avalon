@@ -52,6 +52,34 @@ class Controller
     protected $layout = 'default.phtml';
 
     /**
+     * Set a global variable on the view.
+     *
+     * @param string $key
+     * @param mixed  $value
+     */
+    protected function set($key, $value = null)
+    {
+        if (is_array($key)) {
+            foreach ($key as $k => $v) {
+                $this->set($k, $v);
+            }
+        } else {
+            View::addGlobal($key, $value);
+        }
+    }
+
+    /**
+     * Get the translated string.
+     *
+     * @param string $string
+     * @param mixed  $replacements
+     */
+    protected function translate($string, $replacements = [])
+    {
+        return call_user_func_array('\\Avalon\\Language::translate', func_get_args());
+    }
+
+    /**
      * Render a view and wrap it in a response.
      *
      * @param  string $view
