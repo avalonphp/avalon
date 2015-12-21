@@ -176,4 +176,12 @@ class Controller
         $resp->status = 403;
         return $resp;
     }
+
+    /**
+     * Easily respond to different request types.
+     */
+    protected function respondTo(callable $callback)
+    {
+        return $callback(Request::$properties->get('extension', 'html'));
+    }
 }
