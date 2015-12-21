@@ -84,7 +84,7 @@ class Router
      */
     public static function set404($controller)
     {
-        return static::route('404', '404', $controller);
+        return static::$routes['404'] = new Route('404', '404', $controller);
     }
 
     /**
@@ -168,7 +168,7 @@ class Router
     public static function getRoute($name)
     {
         if (!isset(static::$routes[$name])) {
-            throw new Exception("No route with name [{$name}]");
+            return false;
         }
 
         return static::$routes[$name];
