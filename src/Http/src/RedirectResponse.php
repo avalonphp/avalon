@@ -46,7 +46,7 @@ class RedirectResponse extends Response
      * @param integer $status
      * @param array   $headers
      */
-    public function __construct($url)
+    public function __construct($url, $status = 302)
     {
         $this->url = $url;
         $this->header('Location', $url);

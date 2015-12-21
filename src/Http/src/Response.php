@@ -52,9 +52,10 @@ class Response
      */
     protected $cookies = [];
 
-    public function __construct($content = '')
+    public function __construct($content = '', $status = 200)
     {
         $this->body = $content;
+        $this->status = $status;
     }
 
     /**
