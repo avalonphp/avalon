@@ -86,12 +86,12 @@ class ParameterBag implements ArrayAccess
      *
      * @return mixed
      */
-    public function get($property, $fallback = null)
+    public function get($property, $fallback = null, $placeInParameterBag = true)
     {
         // Check if the property exists otherwise return fallback value.
         if (isset($this->properties[$property])) {
             // If the property is an array, convert it to a ParameterBag object.
-            if (is_array($this->properties[$property])) {
+            if (is_array($this->properties[$property]) && $placeInParameterBag) {
                 return $this->properties[$property] = new static($this->properties[$property]);
             } else {
                 return $this->properties[$property];
