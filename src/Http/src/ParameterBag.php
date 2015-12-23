@@ -128,7 +128,7 @@ class ParameterBag implements ArrayAccess
      */
     public function offsetGet($property)
     {
-        return $this->get($property);
+        return $this->get($property, null, false);
     }
 
     /**
