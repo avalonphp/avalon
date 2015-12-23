@@ -347,7 +347,7 @@ class Request
         $query = [];
 
         foreach ($data as $name => $value) {
-            if ($value) {
+            if ($value !== null) {
                 $query[] = "{$name}=" . ($urlEncode ? urlencode($value) : $value);
             } else {
                 $query[] = $name;
