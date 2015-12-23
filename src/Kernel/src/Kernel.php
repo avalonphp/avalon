@@ -50,6 +50,10 @@ class Kernel
         if ($route) {
             list($class, $method) = explode('::', $route->controller);
             $action = "{$method}Action";
+            Request::$properties->set([
+                'controller' => $class,
+                'action'     => $method
+            ]);
 
             if (!class_exists($class)) {
                 throw new Exception("Controller class [{$class}] not found");
