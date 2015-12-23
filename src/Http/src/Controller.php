@@ -164,7 +164,29 @@ class Controller
      */
     protected function before($action, callable $callback)
     {
-        $this->before[$action][] = $callback;
+        if (is_array($action)) {
+            foreach ($action as $act) {
+                $this->before($act, $callback);
+            }
+        } else {
+            $this->before[$action][] = $callback;
+        }
+    }
+
+    /**
+     * Add after filter.
+     *
+     * @param string   $action
+     * @param callable $callback
+     */
+    protected function after($action, callable $callback) {
+        if (is_array($action)) {
+            foreach ($action as $act) {
+                $this->before($act, $callback);
+            }
+        } else {
+            $this->after[$action][] = $callback;
+        }
     }
 
     /**
