@@ -56,7 +56,10 @@ class AppKernel
     {
         $r = new \ReflectionObject($this);
         $this->path = dirname($r->getFileName());
-        $this->configDir = dirname($this->path) . '/config';
+
+        if (!$this->configDir) {
+            $this->configDir = dirname($this->path) . '/config';
+        }
 
         $this->loadConfiguration();
         $this->loadRoutes();
