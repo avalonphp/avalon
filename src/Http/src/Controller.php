@@ -22,6 +22,7 @@ use Avalon\Templating\View;
 use Avalon\Http\Response;
 use Avalon\Http\JsonResponse;
 use Avalon\Http\RedirectResponse;
+use Avalon\Routing\Router;
 
 /**
  * Controller
@@ -117,6 +118,28 @@ class Controller
     }
 
     /**
+     * @param string $route
+     * @param array  $tokens
+     *
+     * @return string
+     */
+    protected function generatePath($route, array $tokens = [])
+    {
+        return Router::generatePath($route, $tokens);
+    }
+
+    /**
+     * @param string $route
+     * @param array  $tokens
+     *
+     * @return string
+     */
+    protected function generateUrl($route, array $tokens = [])
+    {
+        return Router::generateUrl($route, $tokens);
+    }
+
+    /**
      * Redirect to a route.
      *
      * @param string  $route  route name
@@ -127,7 +150,7 @@ class Controller
      */
     protected function redirectTo($route, array $tokens = [], $status = 302)
     {
-        return $this->redirect(routeUrl($route, $tokens), $status);
+        return $this->redirect($this->generateUrl($route, $tokens), $status);
     }
 
     /**
