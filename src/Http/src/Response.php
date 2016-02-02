@@ -95,7 +95,7 @@ class Response
      * @param string $header
      * @param string $value
      */
-    public function header($header, $value, $replace = true)
+    public function addHeader($header, $value, $replace = true)
     {
         $this->headers[] = [$header, $value, $replace];
     }

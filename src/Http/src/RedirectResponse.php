@@ -49,6 +49,6 @@ class RedirectResponse extends Response
     public function __construct($url, $status = 302)
     {
         $this->url = $url;
-        $this->header('Location', $url);
+        $this->addHeader('Location', $url);
     }
 }
