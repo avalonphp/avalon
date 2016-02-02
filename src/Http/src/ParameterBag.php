@@ -86,7 +86,7 @@ class ParameterBag implements ArrayAccess
      *
      * @return mixed
      */
-    public function get($property, $fallback = null, $placeInParameterBag = true)
+    public function get($property, $fallback = null, $placeInParameterBag = false)
     {
         // Check if the property exists otherwise return fallback value.
         if (isset($this->properties[$property])) {
