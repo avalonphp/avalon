@@ -69,6 +69,8 @@ class Response
     public function addCookie()
     {
         $this->cookies[] = func_get_args();
+
+        return $this;
     }
 
     /**
@@ -87,6 +89,8 @@ class Response
                 $this->contentType = 'application/json';
                 break;
         }
+
+        return $this;
     }
 
     /**
@@ -98,6 +102,8 @@ class Response
     public function addHeader($header, $value, $replace = true)
     {
         $this->headers[] = [$header, $value, $replace];
+
+        return $this;
     }
 
     /**
