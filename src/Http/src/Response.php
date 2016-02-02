@@ -65,6 +65,8 @@ class Response
      * @param string  $value
      * @param integer $expires
      * @param string  $path
+     *
+     * @return Response
      */
     public function addCookie()
     {
@@ -77,6 +79,8 @@ class Response
      * Takes a file extension and sets the content-type.
      *
      * @param string $format
+     *
+     * @return Response
      */
     public function format($format)
     {
@@ -98,6 +102,8 @@ class Response
      *
      * @param string $header
      * @param string $value
+     *
+     * @return Response
      */
     public function addHeader($header, $value, $replace = true)
     {
