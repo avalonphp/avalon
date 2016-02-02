@@ -1,7 +1,7 @@
 <?php
 /*!
  * Avalon
- * Copyright 2011-2015 Jack P.
+ * Copyright 2011-2016 Jack P.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -102,6 +102,21 @@ class Response
     public function addHeader($header, $value, $replace = true)
     {
         $this->headers[] = [$header, $value, $replace];
+
+        return $this;
+    }
+
+    /**
+     * Add a flash message.
+     *
+     * @param string $name
+     * @param string $message
+     *
+     * @return Response
+     */
+    public function addFlash($name, $message)
+    {
+        $_SESSION['flashMessages'][$name][] = $message;
 
         return $this;
     }

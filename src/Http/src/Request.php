@@ -1,7 +1,7 @@
 <?php
 /*!
  * Avalon
- * Copyright 2011-2015 Jack P.
+ * Copyright 2011-2016 Jack P.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -129,6 +129,32 @@ class Request
         static::$basePath    = static::prepareBasePath();
         static::$requestUri  = static::prepareRequestUri();
         static::$pathInfo    = static::preparePathInfo();
+    }
+
+    /**
+     * Check if there is a flash message, or messages, set.
+     *
+     * @param string $name
+     *
+     * @return boolean
+     */
+    public static function hasFlash($name)
+    {
+        return isset($_SESSION['flashMessages'][$name]);
+    }
+
+    /**
+     * Get the flash message(s).
+     *
+     * @param string $name
+     *
+     * @return array
+     */
+    public static function getFlash($name)
+    {
+        $messages = $_SESSION['flashMessages'][$name];
+        unset($_SESSION['flashMessages'][$name]);
+        return $messages;
     }
 
     /**
