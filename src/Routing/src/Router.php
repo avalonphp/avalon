@@ -44,7 +44,7 @@ class Router
      */
     public static $tokens = [
         'id'   => "(?<id>\d+)",
-        'slug' => "(?<slug>[^/]+)"
+        'slug' => "(?<slug>[^/]*?)"
     ];
 
     /**
