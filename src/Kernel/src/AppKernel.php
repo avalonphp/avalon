@@ -21,6 +21,7 @@ namespace Avalon;
 use Exception;
 use ReflectionClass;
 use Avalon\Templating\View;
+use Avalon\Database\ConnectionManager;
 
 /**
  * Application kernel.
@@ -62,6 +63,7 @@ class AppKernel
         }
 
         $this->loadConfiguration();
+        $this->configureDatabase();
         $this->loadRoutes();
 
         $this->configureEnvironment();
@@ -80,7 +82,23 @@ class AppKernel
                 $_ENV['environment'] = $this->config['environment'];
             }
         } else {
-            throw new Exception("Unable to load config file");
+            throw new Exception("Unable to load config file from [{$this->configDir}]");
+        }
+    }
+
+    /**
+     * Configure database connection(s).
+     */
+    protected function configureDatabase()
+    {
+        if (isset($this->config['database'][$this->config['environment']]['default'])) {
+            foreach ($this->config['database'][$this->config['environment']] as $name => $info) {
+                if (!isset($info['prefix'])) {
+                    $info['prefix'] = '';
+                }
+
+                ConnectionManager::create($info, $name);
+            }
         }
     }
 
