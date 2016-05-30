@@ -62,6 +62,13 @@ class Request
     public static $server;
 
     /**
+     * Holds the $_COOKIE array.
+     *
+     * @var ParameterBag
+     */
+    public static $cookies;
+
+    /**
      * Holds the request $_FILES
      *
      * @var array
@@ -121,6 +128,7 @@ class Request
         static::$post       = new ParameterBag($_POST);
         static::$properties = new ParameterBag();
         static::$server     = new ParameterBag($_SERVER);
+        static::$cookies    = new ParameterBag($_COOKIE);
         static::$files      = $_FILES; // Need to make a custom ParameterBag for this.
         static::$headers    = static::buildHeaderBag();
         static::$method     = static::method();
