@@ -136,10 +136,22 @@ class AppKernel
     }
 
     /**
-     * Process the request.
+     * Process the request and return the response.
+     *
+     * @return \Avalon\Http\Response
+     */
+    public function process()
+    {
+        return Kernel::process();
+    }
+
+    /**
+     * Process the request and send the response.
+     *
+     * @return \Avalon\Http\Response
      */
     public function run()
     {
-        Kernel::process()->send();
+        return $this->process()->send();
     }
 }
