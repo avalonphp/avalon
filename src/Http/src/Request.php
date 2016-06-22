@@ -126,7 +126,7 @@ class Request
     {
         static::$query      = new ParameterBag($_GET);
         static::$post       = new ParameterBag($_POST);
-        static::$properties = new ParameterBag();
+        static::$properties = new ParameterBag;
         static::$server     = new ParameterBag($_SERVER);
         static::$cookies    = new ParameterBag($_COOKIE);
         static::$files      = $_FILES; // Need to make a custom ParameterBag for this.
@@ -213,6 +213,14 @@ class Request
         }
 
         return static::$method;
+    }
+
+    /**
+     * @return boolean
+     */
+    public static function isXhr()
+    {
+        return static::$headers->get('X-Requested-With') == 'XMLHttpRequest';
     }
 
     /**

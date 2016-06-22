@@ -86,6 +86,7 @@ class Controller
      *
      * @param  string $view
      * @param  array  $locals
+     *
      * @return Response
      */
     protected function render($view, array $locals = [])
@@ -95,6 +96,19 @@ class Controller
         ];
 
         return new Response($this->renderView($view, $locals));
+    }
+
+    /**
+     * Renders a view and returns it with the JavaScript content type.
+     *
+     * @param  string $view
+     * @param  array  $locals
+     *
+     * @return Response
+     */
+    protected function renderJs($view, array $locals = [])
+    {
+        return $this->jsResponse($this->renderView($view, $locals));
     }
 
     /**
@@ -180,6 +194,21 @@ class Controller
     }
 
     /**
+     * JavaScript response.
+     *
+     * @param string  $content
+     * @param integer $status
+     *
+     * @return Response
+     */
+    protected function jsResponse($content = '', $status = 200)
+    {
+        $response = new Response($content, $status);
+        $response->contentType = 'application/javascript';
+        return $response;
+    }
+
+    /**
      * Add before filter.
      *
      * @param string   $action
@@ -241,6 +270,8 @@ class Controller
      */
     protected function respondTo(callable $callback)
     {
-        return $callback(Request::$properties->get('extension', 'html'));
+        // Is this an XMLHttpRequest? If not, use the request extension or fallback to HTML.
+        $format = Request::isXhr() ? 'js' : Request::$properties->get('extension', 'html');
+        return $callback($format);
     }
 }
