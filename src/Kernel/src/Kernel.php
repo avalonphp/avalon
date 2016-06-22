@@ -79,7 +79,11 @@ class Kernel
 
             return $response;
         } else {
-            throw new Exception(sprintf("No route matches [%s] and no 404 controller set", Request::$pathInfo));
+            throw new Exception(sprintf(
+                "No route matches [%s %s] and no 404 controller set",
+                Request::$method,
+                Request::$pathInfo
+            ));
         }
     }
 
