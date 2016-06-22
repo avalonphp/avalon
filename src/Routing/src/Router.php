@@ -66,6 +66,16 @@ class Router
     }
 
     /**
+     * Add file extension.
+     *
+     * @param string $extension
+     */
+    public static function addExtension($extension)
+    {
+        static::$extensions[] = $extension;
+    }
+
+    /**
      * Set root controller
      *
      * @param string $controller
