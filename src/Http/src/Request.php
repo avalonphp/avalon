@@ -140,6 +140,28 @@ class Request
     }
 
     /**
+     * Reset the class variables to null.
+     */
+    public static function reset()
+    {
+        static::$query      = null;
+        static::$post       = null;
+        static::$properties = null;
+        static::$server     = null;
+        static::$cookies    = null;
+        static::$files      = null;
+        static::$headers    = null;
+        static::$method     = null;
+
+        static::$pathInfo    = null;
+        static::$requestUri  = null;
+        static::$requestPath = null;
+        static::$basePath    = null;
+        static::$baseUrl     = null;
+
+    }
+
+    /**
      * Check if there is a flash message, or messages, set.
      *
      * @param string $name
