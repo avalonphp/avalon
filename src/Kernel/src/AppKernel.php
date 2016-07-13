@@ -87,18 +87,12 @@ class AppKernel
     }
 
     /**
-     * Configure database connection(s).
+     * Configure database connection.
      */
     protected function configureDatabase()
     {
-        if (isset($this->config['database'][$this->config['environment']]['default'])) {
-            foreach ($this->config['database'][$this->config['environment']] as $name => $info) {
-                if (!isset($info['prefix'])) {
-                    $info['prefix'] = '';
-                }
-
-                ConnectionManager::create($info, $name);
-            }
+        if (isset($this->config['database'][$this->config['environment']])) {
+            ConnectionManager::create($this->config['database'][$this->config['environment']]);
         }
     }
 
