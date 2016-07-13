@@ -78,9 +78,12 @@ class AppKernel
         if (file_exists("{$this->configDir}/config.php")) {
             $this->config = require "{$this->configDir}/config.php";
 
-            if (isset($this->config['environment'])) {
-                $_ENV['environment'] = $this->config['environment'];
+            // If no environment is set, assume production.
+            if (!isset($this->config['environment'])) {
+                $this->config['environment'] = 'production';
             }
+
+            $_ENV['environment'] = $this->config['environment'];
         } else {
             throw new Exception("Unable to load config file from [{$this->configDir}]");
         }
