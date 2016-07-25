@@ -53,6 +53,15 @@ class AppKernel
      */
     protected $config;
 
+    /**
+     * Configuration defaults.
+     *
+     * @var array
+     */
+    protected $configDefaults = [
+        'environment' => 'production' // Default to production environment
+    ];
+
     public function __construct()
     {
         $r = new \ReflectionObject($this);
@@ -76,12 +85,10 @@ class AppKernel
     protected function loadConfiguration()
     {
         if (file_exists("{$this->configDir}/config.php")) {
-            $this->config = require "{$this->configDir}/config.php";
+            $config = require "{$this->configDir}/config.php";
 
-            // If no environment is set, assume production.
-            if (!isset($this->config['environment'])) {
-                $this->config['environment'] = 'production';
-            }
+            // Merge config with defaults
+            $this->config = $config + $this->configDefaults;
 
             $_ENV['environment'] = $this->config['environment'];
         } else {
