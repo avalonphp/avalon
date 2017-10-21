@@ -158,7 +158,6 @@ class Request
         static::$requestPath = null;
         static::$basePath    = null;
         static::$baseUrl     = null;
-
     }
 
     /**
@@ -393,6 +392,14 @@ class Request
     public static function redirectTo($url, $responseCode = Request::HTTP_SEE_OTHER)
     {
         static::redirect(static::basePath($url), $responseCode);
+    }
+
+    /**
+     * @return string
+     */
+    public static function queryString()
+    {
+        return isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
     }
 
     /**
